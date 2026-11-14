@@ -1,0 +1,27 @@
+
+# Variables privadas
+.env
+.env.*
+!.env.example
+
+# Node.js
+node_modules/
+dist/
+build/
+coverage/
+*.log
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+**/build/
+
+# IDE y sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
