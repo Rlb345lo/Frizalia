@@ -6,6 +6,7 @@ import "dotenv/config";
 import { verificarConexion } from "./config/database.js";
 import productosRoutes from "./routes/productos.routes.js";
 import authRoutes from "./routes/auth.routes.js";
+import solicitudesRoutes from "./routes/solicitudes.routes.js";
 
 // ==========================================
 // CONFIGURACIÓN DEL SERVIDOR
@@ -48,6 +49,13 @@ app.use("/api/productos", productosRoutes);
 app.use("/api/auth", authRoutes);
 
 // ==========================================
+// RUTAS DE SOLICITUDES
+// ==========================================
+
+// Crear solicitudes de pedidos para recoger en local
+app.use("/api/solicitudes", solicitudesRoutes);
+
+// ==========================================
 // INICIAR SERVIDOR
 // ==========================================
 
@@ -78,6 +86,10 @@ async function iniciarServidor(): Promise<void> {
 
       console.log(
         `🔐 Autenticación: http://localhost:${PORT}/api/auth`
+      );
+
+      console.log(
+        `📦 Solicitudes: http://localhost:${PORT}/api/solicitudes`
       );
     });
   } catch (error) {
