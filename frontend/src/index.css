@@ -1,0 +1,56 @@
+
+@import "tailwindcss";
+
+/* ==========================================
+   FRIZALIA - TEMA GLOBAL
+   Tailwind CSS v4
+========================================== */
+
+@theme {
+  /* Colores principales */
+  --color-frizalia-pink: #f7b9d5;
+  --color-frizalia-yellow: #f8eab2;
+  --color-frizalia-cream: #fff9f6;
+
+  /* Colores complementarios */
+  --color-frizalia-soft-pink: #f9e9f0;
+  --color-frizalia-white: #ffffff;
+
+  /* Tipografía */
+  --color-frizalia-text: #29232d;
+  --color-frizalia-muted: #817a83;
+
+  /* Estados */
+  --color-frizalia-success: #5f9e83;
+  --color-frizalia-warning: #d4a64c;
+  --color-frizalia-danger: #d96b80;
+}
+
+/* ==========================================
+   ESTILOS GENERALES
+========================================== */
+
+:root {
+  font-family: Inter, system-ui, Arial, sans-serif;
+  color: #29232d;
+  background-color: #fff9f6;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button {
+  cursor: pointer;
+}
+
+#root {
+  min-height: 100vh;
+}

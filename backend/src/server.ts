@@ -4,9 +4,12 @@ import cors from "cors";
 import "dotenv/config";
 
 import { verificarConexion } from "./config/database.js";
+
 import productosRoutes from "./routes/productos.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import solicitudesRoutes from "./routes/solicitudes.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
+import categoriasRoutes from "./routes/categorias.routes.js";
 
 // ==========================================
 // CONFIGURACIÓN DEL SERVIDOR
@@ -52,8 +55,21 @@ app.use("/api/auth", authRoutes);
 // RUTAS DE SOLICITUDES
 // ==========================================
 
-// Crear solicitudes de pedidos para recoger en local
 app.use("/api/solicitudes", solicitudesRoutes);
+
+// ==========================================
+// RUTAS DEL DASHBOARD
+// ==========================================
+
+// El router del Dashboard ya contiene
+// sus middlewares de autenticación.
+app.use("/api/dashboard", dashboardRoutes);
+
+// ==========================================
+// RUTAS DE CATEGORÍAS
+// ==========================================
+
+app.use("/api/categorias", categoriasRoutes);
 
 // ==========================================
 // INICIAR SERVIDOR
@@ -90,6 +106,18 @@ async function iniciarServidor(): Promise<void> {
 
       console.log(
         `📦 Solicitudes: http://localhost:${PORT}/api/solicitudes`
+      );
+
+      console.log(
+        `📊 Dashboard: http://localhost:${PORT}/api/dashboard/resumen`
+      );
+
+      console.log(
+        `🏷️ Categorías: http://localhost:${PORT}/api/categorias`
+      );
+
+      console.log(
+        `🏷️ Categorías activas: http://localhost:${PORT}/api/categorias/activas`
       );
     });
   } catch (error) {
