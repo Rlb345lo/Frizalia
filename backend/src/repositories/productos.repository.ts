@@ -4,7 +4,7 @@ import type { PoolConnection } from "mysql2/promise";
 
 import { pool } from "../config/database.js";
 
-import type { NuevoProducto } from "../types/inventario.js";
+import type { NuevoProducto, ActualizarProducto } from "../types/inventario.js";
 
 // ==========================================
 // TIPOS
@@ -115,4 +115,82 @@ export async function crearProducto(
   );
 
   return resultado.insertId;
+}
+
+// ==========================================
+// ACTUALIZAR PRODUCTO
+// ==========================================
+
+export async function actualizarProducto(
+  idProducto: number,
+  datos: ActualizarProducto,
+): Promise<boolean> {
+  const campos: string[] = [];
+  const valores: Array<string | number | null> = [];
+
+  // Categoría
+  if (datos.id_categoria !== undefined) {
+    campos.push("id_categoria = ?");
+    valores.push(datos.id_categoria);
+  }
+
+  // Nombre
+  if (datos.nombre !== undefined) {
+    campos.push("nombre = ?");
+    valores.push(datos.nombre);
+  }
+
+  // Presentación
+  if (datos.presentacion !== undefined) {
+    campos.push("presentacion = ?");
+    valores.push(datos.presentacion);
+  }
+
+  // Descripción
+  if (datos.descripcion !== undefined) {
+    campos.push("descripcion = ?");
+    valores.push(datos.descripcion);
+  }
+
+  // Precio
+  if (datos.precio !== undefined) {
+    campos.push("precio = ?");
+    valores.push(datos.precio);
+  }
+
+  // Stock mínimo
+  if (datos.stock_minimo !== undefined) {
+    campos.push("stock_minimo = ?");
+    valores.push(datos.stock_minimo);
+  }
+
+  // Imagen
+  if (datos.imagen_url !== undefined) {
+    campos.push("imagen_url = ?");
+    valores.push(datos.imagen_url);
+  }
+
+  // Disponibilidad
+  if (datos.disponible !== undefined) {
+    campos.push("disponible = ?");
+    valores.push(datos.disponible ? 1 : 0);
+  }
+
+  // No ejecutar consultas sin campos
+  if (campos.length === 0) {
+    return false;
+  }
+
+  valores.push(idProducto);
+
+  const [resultado] = await pool.execute<ResultSetHeader>(
+    `
+      UPDATE productos
+      SET ${campos.join(", ")}
+      WHERE id_producto = ?
+    `,
+    valores,
+  );
+
+  return resultado.affectedRows > 0;
 }

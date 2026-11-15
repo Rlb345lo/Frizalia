@@ -4,6 +4,7 @@ import {
   obtenerProductos,
   obtenerProductoPorId,
   registrarProducto,
+  editarProducto,
 } from "../controllers/productos.controller.js";
 
 import { verificarToken } from "../middlewares/auth.middleware.js";
@@ -28,9 +29,18 @@ router.get("/", obtenerProductos);
 // ==========================================
 
 // POST /api/productos
-// Requiere JWT y permisos de administrador.
+// Solo administradores autenticados
 
 router.post("/", verificarToken, verificarAdministrador, registrarProducto);
+
+// ==========================================
+// EDITAR PRODUCTO EXISTENTE
+// ==========================================
+
+// PATCH /api/productos/:id
+// Solo administradores autenticados
+
+router.patch("/:id", verificarToken, verificarAdministrador, editarProducto);
 
 // ==========================================
 // OBTENER PRODUCTO POR ID

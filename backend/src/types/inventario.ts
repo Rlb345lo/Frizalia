@@ -85,3 +85,36 @@ export interface MovimientoInventario {
   motivo: string;
   fecha_movimiento: string;
 }
+
+// ==========================================
+// NUEVO: REABASTECIMIENTO MÚLTIPLE
+// ==========================================
+
+// Producto seleccionado para reabastecer.
+export interface ProductoReabastecimiento {
+  id_producto: number;
+  cantidad: number;
+}
+
+// Datos enviados al backend.
+export interface NuevoReabastecimientoMultiple {
+  productos: ProductoReabastecimiento[];
+  motivo: string;
+}
+
+// Resultado individual de cada producto.
+export interface DetalleReabastecimiento {
+  id_movimiento: number;
+  id_producto: number;
+  cantidad: number;
+  stock_anterior: number;
+  stock_actual: number;
+}
+
+// Respuesta del backend al completar la operación.
+export interface ResultadoReabastecimientoMultiple {
+  mensaje: string;
+  productos_actualizados: number;
+  unidades_agregadas: number;
+  movimientos: DetalleReabastecimiento[];
+}

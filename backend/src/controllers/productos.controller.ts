@@ -7,10 +7,14 @@ import {
   buscarProductoPorId,
 } from "../repositories/productos.repository.js";
 
-import { validarNuevoProducto } from "../validators/productos.validator.js";
+import {
+  validarNuevoProducto,
+  validarActualizacionProducto,
+} from "../validators/productos.validator.js";
 
 import {
   registrarProductoInventario,
+  editarProductoInventario,
   ErrorInventario,
 } from "../services/inventario.service.js";
 
@@ -90,10 +94,6 @@ export async function registrarProducto(
   res: Response,
 ): Promise<void> {
   try {
-    // ======================================
-    // VERIFICAR USUARIO AUTENTICADO
-    // ======================================
-
     const idUsuario = req.idUsuario;
 
     if (
@@ -107,10 +107,6 @@ export async function registrarProducto(
       return;
     }
 
-    // ======================================
-    // VALIDAR DATOS DEL PRODUCTO
-    // ======================================
-
     const validacion = validarNuevoProducto(req.body);
 
     if (!validacion.valido) {
@@ -121,23 +117,105 @@ export async function registrarProducto(
       return;
     }
 
-    // ======================================
-    // REGISTRAR PRODUCTO EN INVENTARIO
-    // ======================================
-
     const resultado = await registrarProductoInventario(
       validacion.datos,
       idUsuario,
+    );
+
+    res.status(201).json(resultado);
+  } catch (error) {
+    if (error instanceof ErrorInventario) {
+      res.status(error.codigoHTTP).json({
+        mensaje: error.message,
+      });
+      return;
+    }
+
+    console.error("Error al registrar producto:", error);
+
+    res.status(500).json({
+      mensaje: "Error interno al registrar el producto.",
+    });
+  }
+}
+
+// ==========================================
+// EDITAR PRODUCTO EXISTENTE
+// ==========================================
+
+export async function editarProducto(
+  req: RequestAutenticada,
+  res: Response,
+): Promise<void> {
+  try {
+    // ======================================
+    // VERIFICAR USUARIO AUTENTICADO
+    // ======================================
+
+    if (
+      typeof req.idUsuario !== "number" ||
+      !Number.isSafeInteger(req.idUsuario) ||
+      req.idUsuario <= 0
+    ) {
+      res.status(401).json({
+        mensaje: "No se encontró un usuario autenticado.",
+      });
+      return;
+    }
+
+    // ======================================
+    // VALIDAR ID DEL PRODUCTO
+    // ======================================
+
+    const parametroId = req.params.id;
+
+    if (typeof parametroId !== "string" || !/^[1-9]\d*$/.test(parametroId)) {
+      res.status(400).json({
+        mensaje: "El ID del producto debe ser un número entero positivo.",
+      });
+      return;
+    }
+
+    const idProducto = Number(parametroId);
+
+    if (!Number.isSafeInteger(idProducto)) {
+      res.status(400).json({
+        mensaje: "El ID del producto no es válido.",
+      });
+      return;
+    }
+
+    // ======================================
+    // VALIDAR DATOS DE ACTUALIZACIÓN
+    // ======================================
+
+    const validacion = validarActualizacionProducto(req.body);
+
+    if (!validacion.valido) {
+      res.status(400).json({
+        mensaje: "Los datos de actualización no son válidos.",
+        errores: validacion.errores,
+      });
+      return;
+    }
+
+    // ======================================
+    // ACTUALIZAR PRODUCTO
+    // ======================================
+
+    const resultado = await editarProductoInventario(
+      idProducto,
+      validacion.datos,
     );
 
     // ======================================
     // RESPONDER AL CLIENTE
     // ======================================
 
-    res.status(201).json(resultado);
+    res.status(200).json(resultado);
   } catch (error) {
     // ======================================
-    // ERRORES CONTROLADOS DEL INVENTARIO
+    // ERRORES CONTROLADOS
     // ======================================
 
     if (error instanceof ErrorInventario) {
@@ -151,10 +229,10 @@ export async function registrarProducto(
     // ERRORES INESPERADOS
     // ======================================
 
-    console.error("Error al registrar producto:", error);
+    console.error("Error al editar producto:", error);
 
     res.status(500).json({
-      mensaje: "Error interno al registrar el producto.",
+      mensaje: "Error interno al editar el producto.",
     });
   }
 }

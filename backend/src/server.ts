@@ -5,11 +5,16 @@ import "dotenv/config";
 
 import { verificarConexion } from "./config/database.js";
 
+// ==========================================
+// IMPORTACIÓN DE RUTAS
+// ==========================================
+
 import productosRoutes from "./routes/productos.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import solicitudesRoutes from "./routes/solicitudes.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import categoriasRoutes from "./routes/categorias.routes.js";
+import movimientosInventarioRoutes from "./routes/movimientosInventario.routes.js";
 
 // ==========================================
 // CONFIGURACIÓN DEL SERVIDOR
@@ -72,12 +77,32 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/categorias", categoriasRoutes);
 
 // ==========================================
+// RUTAS DE MOVIMIENTOS DE INVENTARIO
+// ==========================================
+
+// Permite:
+// GET  /api/movimientos-inventario
+// GET  /api/movimientos-inventario/producto/:id
+// POST /api/movimientos-inventario
+
+// Las rutas están protegidas con JWT
+// y permisos de administrador.
+
+app.use(
+  "/api/movimientos-inventario",
+  movimientosInventarioRoutes
+);
+
+// ==========================================
 // INICIAR SERVIDOR
 // ==========================================
 
 async function iniciarServidor(): Promise<void> {
   try {
-    // Comprobar que JWT_SECRET esté configurado
+    // ======================================
+    // VALIDAR CONFIGURACIÓN JWT
+    // ======================================
+
     if (
       !process.env.JWT_SECRET ||
       process.env.JWT_SECRET.length < 32
@@ -87,10 +112,16 @@ async function iniciarServidor(): Promise<void> {
       );
     }
 
-    // Verificar conexión con MySQL
+    // ======================================
+    // VERIFICAR CONEXIÓN CON MYSQL
+    // ======================================
+
     await verificarConexion();
 
-    // Iniciar servidor Express
+    // ======================================
+    // INICIAR SERVIDOR EXPRESS
+    // ======================================
+
     app.listen(PORT, () => {
       console.log(
         `🚀 Servidor ejecutándose en http://localhost:${PORT}`
@@ -118,6 +149,14 @@ async function iniciarServidor(): Promise<void> {
 
       console.log(
         `🏷️ Categorías activas: http://localhost:${PORT}/api/categorias/activas`
+      );
+
+      console.log(
+        `📋 Movimientos: http://localhost:${PORT}/api/movimientos-inventario`
+      );
+
+      console.log(
+        `📦 Historial por producto: http://localhost:${PORT}/api/movimientos-inventario/producto/7`
       );
     });
   } catch (error) {

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
+import InventarioPage from "./pages/InventarioPage";
 
 import AdminLayout from "./components/layout/AdminLayout";
 import { useAuth } from "./hooks/useAuth";
@@ -85,6 +86,18 @@ function App() {
           <RutaProtegida>
             <AdminLayout>
               <DashboardPage />
+            </AdminLayout>
+          </RutaProtegida>
+        }
+      />
+
+      {/* INVENTARIO */}
+      <Route
+        path="/inventario"
+        element={
+          <RutaProtegida>
+            <AdminLayout>
+              <InventarioPage />
             </AdminLayout>
           </RutaProtegida>
         }

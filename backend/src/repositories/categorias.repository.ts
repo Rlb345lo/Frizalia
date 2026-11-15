@@ -1,4 +1,5 @@
 import type { RowDataPacket } from "mysql2";
+
 import { pool } from "../config/database.js";
 
 // ==========================================
@@ -13,7 +14,7 @@ export interface Categoria extends RowDataPacket {
 }
 
 // ==========================================
-// LISTAR CATEGORÍAS
+// LISTAR TODAS LAS CATEGORÍAS
 // ==========================================
 
 export async function listarCategorias(): Promise<Categoria[]> {
@@ -47,4 +48,40 @@ export async function listarCategoriasActivas(): Promise<Categoria[]> {
   `);
 
   return categorias;
+}
+
+// ==========================================
+// BUSCAR CATEGORÍA POR ID
+// ==========================================
+
+export async function buscarCategoriaPorId(
+  idCategoria: number,
+): Promise<Categoria | null> {
+  const [categorias] = await pool.execute<Categoria[]>(
+    `
+      SELECT
+        id_categoria,
+        nombre,
+        descripcion,
+        activa
+      FROM categorias
+      WHERE id_categoria = ?
+      LIMIT 1
+    `,
+    [idCategoria],
+  );
+
+  return categorias[0] ?? null;
+}
+
+// ==========================================
+// VERIFICAR CATEGORÍA ACTIVA
+// ==========================================
+
+export async function categoriaEstaActiva(
+  idCategoria: number,
+): Promise<boolean> {
+  const categoria = await buscarCategoriaPorId(idCategoria);
+
+  return categoria !== null && categoria.activa === 1;
 }
