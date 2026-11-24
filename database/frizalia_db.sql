@@ -24,10 +24,36 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `frizalia_db` /*!40100 DEFAULT CHARACTE
 USE `frizalia_db`;
 
 --
+-- Table structure for table `cajas`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `cajas` (
+  `id_caja` int NOT NULL AUTO_INCREMENT,
+  `id_usuario_apertura` int NOT NULL,
+  `id_usuario_cierre` int DEFAULT NULL,
+  `fecha_apertura` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `fecha_cierre` datetime DEFAULT NULL,
+  `fondo_inicial` decimal(10,2) NOT NULL,
+  `monto_esperado` decimal(10,2) DEFAULT NULL,
+  `monto_real` decimal(10,2) DEFAULT NULL,
+  `diferencia` decimal(10,2) DEFAULT NULL,
+  `estado` enum('ABIERTA','CERRADA') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ABIERTA',
+  `observaciones` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id_caja`),
+  KEY `fk_cajas_usuario_apertura` (`id_usuario_apertura`),
+  KEY `fk_cajas_usuario_cierre` (`id_usuario_cierre`),
+  CONSTRAINT `fk_cajas_usuario_apertura` FOREIGN KEY (`id_usuario_apertura`) REFERENCES `usuarios` (`id_usuario`),
+  CONSTRAINT `fk_cajas_usuario_cierre` FOREIGN KEY (`id_usuario_cierre`) REFERENCES `usuarios` (`id_usuario`),
+  CONSTRAINT `chk_cajas_fondo_inicial` CHECK ((`fondo_inicial` >= 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `categorias`
 --
 
-DROP TABLE IF EXISTS `categorias`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `categorias` (
@@ -37,24 +63,13 @@ CREATE TABLE `categorias` (
   `activa` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY (`id_categoria`),
   UNIQUE KEY `nombre` (`nombre`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `categorias`
---
-
-LOCK TABLES `categorias` WRITE;
-/*!40000 ALTER TABLE `categorias` DISABLE KEYS */;
-INSERT INTO `categorias` VALUES (1,'Paletas','Paletas de agua y de leche',1),(2,'Helados','Helados de diferentes sabores',1),(3,'Nieves','Nieves de frutas y sabores naturales',1),(4,'Pasteles','Pasteles fríos y helados',1),(5,'Bebidas','Bebidas frías y refrescantes',1),(6,'Otros','Otros productos de la nevería',1);
-/*!40000 ALTER TABLE `categorias` ENABLE KEYS */;
-UNLOCK TABLES;
 
 --
 -- Table structure for table `detalle_solicitud`
 --
 
-DROP TABLE IF EXISTS `detalle_solicitud`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `detalle_solicitud` (
@@ -75,19 +90,61 @@ CREATE TABLE `detalle_solicitud` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `detalle_solicitud`
+-- Table structure for table `detalle_venta`
 --
 
-LOCK TABLES `detalle_solicitud` WRITE;
-/*!40000 ALTER TABLE `detalle_solicitud` DISABLE KEYS */;
-/*!40000 ALTER TABLE `detalle_solicitud` ENABLE KEYS */;
-UNLOCK TABLES;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `detalle_venta` (
+  `id_detalle_venta` int NOT NULL AUTO_INCREMENT,
+  `id_venta` int NOT NULL,
+  `id_producto` int NOT NULL,
+  `cantidad` int NOT NULL,
+  `precio_unitario` decimal(10,2) NOT NULL,
+  `subtotal` decimal(10,2) NOT NULL,
+  PRIMARY KEY (`id_detalle_venta`),
+  UNIQUE KEY `uq_detalle_venta_producto` (`id_venta`,`id_producto`),
+  KEY `fk_detalle_venta_producto` (`id_producto`),
+  CONSTRAINT `fk_detalle_venta_producto` FOREIGN KEY (`id_producto`) REFERENCES `productos` (`id_producto`),
+  CONSTRAINT `fk_detalle_venta_venta` FOREIGN KEY (`id_venta`) REFERENCES `ventas` (`id_venta`),
+  CONSTRAINT `chk_detalle_venta_cantidad` CHECK ((`cantidad` > 0)),
+  CONSTRAINT `chk_detalle_venta_precio` CHECK ((`precio_unitario` >= 0)),
+  CONSTRAINT `chk_detalle_venta_subtotal` CHECK ((`subtotal` >= 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `movimientos_caja`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `movimientos_caja` (
+  `id_movimiento_caja` int NOT NULL AUTO_INCREMENT,
+  `id_caja` int NOT NULL,
+  `id_usuario` int NOT NULL,
+  `id_venta` int DEFAULT NULL,
+  `tipo` enum('ENTRADA','SALIDA') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `concepto` enum('VENTA','OTRO') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'OTRO',
+  `monto` decimal(10,2) NOT NULL,
+  `motivo` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `fecha_movimiento` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id_movimiento_caja`),
+  UNIQUE KEY `uq_mov_caja_venta` (`id_venta`),
+  KEY `fk_mov_caja_caja` (`id_caja`),
+  KEY `fk_mov_caja_usuario` (`id_usuario`),
+  CONSTRAINT `fk_mov_caja_caja` FOREIGN KEY (`id_caja`) REFERENCES `cajas` (`id_caja`),
+  CONSTRAINT `fk_mov_caja_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuarios` (`id_usuario`),
+  CONSTRAINT `fk_mov_caja_venta` FOREIGN KEY (`id_venta`) REFERENCES `ventas` (`id_venta`),
+  CONSTRAINT `chk_mov_caja_concepto` CHECK ((((`concepto` = _utf8mb4'VENTA') and (`tipo` = _utf8mb4'ENTRADA') and (`id_venta` is not null)) or ((`concepto` = _utf8mb4'OTRO') and (`id_venta` is null)))),
+  CONSTRAINT `chk_mov_caja_monto` CHECK ((`monto` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `movimientos_inventario`
 --
 
-DROP TABLE IF EXISTS `movimientos_inventario`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `movimientos_inventario` (
@@ -111,28 +168,20 @@ CREATE TABLE `movimientos_inventario` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `movimientos_inventario`
---
-
-LOCK TABLES `movimientos_inventario` WRITE;
-/*!40000 ALTER TABLE `movimientos_inventario` DISABLE KEYS */;
-/*!40000 ALTER TABLE `movimientos_inventario` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `productos`
 --
 
-DROP TABLE IF EXISTS `productos`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `productos` (
   `id_producto` int NOT NULL AUTO_INCREMENT,
   `id_categoria` int NOT NULL,
   `nombre` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `presentacion` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `descripcion` text COLLATE utf8mb4_unicode_ci,
   `precio` decimal(10,2) NOT NULL,
   `stock` int NOT NULL DEFAULT '0',
+  `stock_minimo` int NOT NULL DEFAULT '10',
   `imagen_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `disponible` tinyint(1) NOT NULL DEFAULT '1',
   `fecha_creacion` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -141,24 +190,13 @@ CREATE TABLE `productos` (
   CONSTRAINT `fk_producto_categoria` FOREIGN KEY (`id_categoria`) REFERENCES `categorias` (`id_categoria`),
   CONSTRAINT `chk_producto_precio` CHECK ((`precio` >= 0)),
   CONSTRAINT `chk_producto_stock` CHECK ((`stock` >= 0))
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `productos`
---
-
-LOCK TABLES `productos` WRITE;
-/*!40000 ALTER TABLE `productos` DISABLE KEYS */;
-INSERT INTO `productos` VALUES (1,1,'Paleta de fresa','Paleta de agua sabor fresa',20.00,30,NULL,1,'2026-11-14 18:23:42'),(2,1,'Paleta de mango','Paleta de agua sabor mango',20.00,25,NULL,1,'2026-11-14 18:23:42'),(3,1,'Paleta de chocolate','Paleta de leche sabor chocolate',25.00,20,NULL,1,'2026-11-14 18:23:42'),(4,2,'Helado de vainilla','Helado de vainilla en vaso',35.00,15,NULL,1,'2026-11-14 18:23:42'),(5,2,'Helado de chocolate','Helado de chocolate en vaso',35.00,15,NULL,1,'2026-11-14 18:23:42'),(6,4,'Pastel helado','Rebanada de pastel helado',45.00,10,NULL,1,'2026-11-14 18:23:42');
-/*!40000 ALTER TABLE `productos` ENABLE KEYS */;
-UNLOCK TABLES;
 
 --
 -- Table structure for table `solicitudes`
 --
 
-DROP TABLE IF EXISTS `solicitudes`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `solicitudes` (
@@ -184,19 +222,9 @@ CREATE TABLE `solicitudes` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `solicitudes`
---
-
-LOCK TABLES `solicitudes` WRITE;
-/*!40000 ALTER TABLE `solicitudes` DISABLE KEYS */;
-/*!40000 ALTER TABLE `solicitudes` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `usuarios`
 --
 
-DROP TABLE IF EXISTS `usuarios`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `usuarios` (
@@ -214,13 +242,44 @@ CREATE TABLE `usuarios` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `usuarios`
+-- Table structure for table `ventas`
 --
 
-LOCK TABLES `usuarios` WRITE;
-/*!40000 ALTER TABLE `usuarios` DISABLE KEYS */;
-/*!40000 ALTER TABLE `usuarios` ENABLE KEYS */;
-UNLOCK TABLES;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ventas` (
+  `id_venta` int NOT NULL AUTO_INCREMENT,
+  `id_caja` int NOT NULL,
+  `id_usuario` int NOT NULL,
+  `id_solicitud` int DEFAULT NULL,
+  `folio` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `total` decimal(10,2) NOT NULL,
+  `metodo_pago` enum('EFECTIVO','TARJETA') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'EFECTIVO',
+  `monto_recibido` decimal(10,2) NOT NULL,
+  `cambio` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `fecha_venta` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id_venta`),
+  UNIQUE KEY `folio` (`folio`),
+  UNIQUE KEY `uq_ventas_solicitud` (`id_solicitud`),
+  KEY `fk_ventas_caja` (`id_caja`),
+  KEY `fk_ventas_usuario` (`id_usuario`),
+  CONSTRAINT `fk_ventas_caja` FOREIGN KEY (`id_caja`) REFERENCES `cajas` (`id_caja`),
+  CONSTRAINT `fk_ventas_solicitud` FOREIGN KEY (`id_solicitud`) REFERENCES `solicitudes` (`id_solicitud`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  CONSTRAINT `fk_ventas_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuarios` (`id_usuario`),
+  CONSTRAINT `chk_ventas_cambio` CHECK ((`cambio` >= 0)),
+  CONSTRAINT `chk_ventas_monto_recibido` CHECK ((`monto_recibido` >= 0)),
+  CONSTRAINT `chk_ventas_total` CHECK ((`total` >= 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+-- Categorias iniciales para una instalacion nueva.
+INSERT INTO `categorias` (`id_categoria`, `nombre`, `descripcion`, `activa`) VALUES
+  (1, 'Paletas', 'Paletas de agua y de leche', 1),
+  (2, 'Helados', 'Helados de diferentes sabores', 1),
+  (3, 'Nieves', 'Nieves de frutas y sabores naturales', 1),
+  (4, 'Pasteles', 'Pasteles fríos y helados', 1),
+  (5, 'Bebidas', 'Bebidas frías y refrescantes', 1),
+  (6, 'Otros', 'Otros productos de la nevería', 1);
+
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -231,4 +290,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-11-14 13:18:40
+-- Dump completed on 2026-11-24 17:46:48
