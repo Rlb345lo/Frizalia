@@ -20,27 +20,6 @@ import RecentRequests from "../components/dashboard/RecentRequests";
 import { obtenerResumenDashboard } from "../services/dashboardApi";
 
 import type { ResumenDashboard } from "../services/dashboardApi";
-import type { ProductoStockBajo } from "../components/dashboard/LowStockList";
-import type { SolicitudReciente } from "../components/dashboard/RecentRequests";
-
-// ==========================================
-// DATOS DE DEMOSTRACIÓN
-// ==========================================
-
-// Estos valores se reemplazarán cuando
-// implementemos el módulo de ventas.
-const ventasHoyEjemplo = 24;
-const ingresosHoyEjemplo = 2450;
-
-const ventasSemanalesEjemplo = [
-  { dia: "Lun", total: 1250 },
-  { dia: "Mar", total: 1800 },
-  { dia: "Mié", total: 1450 },
-  { dia: "Jue", total: 2200 },
-  { dia: "Vie", total: 1950 },
-  { dia: "Sáb", total: 3100 },
-  { dia: "Dom", total: 2450 },
-];
 
 // ==========================================
 // FORMATO DE MONEDA
@@ -51,44 +30,6 @@ const formatoMoneda = new Intl.NumberFormat("es-MX", {
   currency: "MXN",
   maximumFractionDigits: 2,
 });
-
-// ==========================================
-// ADAPTAR PRODUCTOS CON STOCK BAJO
-// ==========================================
-
-function adaptarProductosStockBajo(
-  productos: ResumenDashboard["productosStockBajo"],
-): ProductoStockBajo[] {
-  return productos.map((producto) => ({
-    id: producto.id,
-    nombre: producto.nombre,
-
-    // Temporalmente no tenemos presentaciones
-    // registradas en la base de datos.
-    presentacion: "Sin presentación",
-
-    stockActual: producto.stockActual,
-    stockMinimo: producto.stockMinimo,
-  }));
-}
-
-// ==========================================
-// ADAPTAR SOLICITUDES RECIENTES
-// ==========================================
-
-// Conservamos los estados originales de MySQL.
-// RecentRequests.tsx ya reconoce los siete estados.
-
-function adaptarSolicitudes(
-  solicitudes: ResumenDashboard["solicitudesRecientes"],
-): SolicitudReciente[] {
-  return solicitudes.map((solicitud) => ({
-    id: solicitud.id,
-    cliente: solicitud.cliente,
-    fecha: solicitud.fecha,
-    estado: solicitud.estado,
-  }));
-}
 
 // ==========================================
 // COMPONENTE DASHBOARD
@@ -184,17 +125,7 @@ export default function DashboardPage() {
     };
   }, [verificando, token]);
 
-  // ========================================
-  // ADAPTAR DATOS
-  // ========================================
-
-  const productosStockBajo = adaptarProductosStockBajo(
-    resumen?.productosStockBajo ?? [],
-  );
-
-  const solicitudesRecientes = adaptarSolicitudes(
-    resumen?.solicitudesRecientes ?? [],
-  );
+  const sinDatos = cargando || verificando ? "..." : "—";
 
   // ========================================
   // RENDERIZAR DASHBOARD
@@ -240,7 +171,7 @@ export default function DashboardPage() {
 
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-frizalia-soft-pink px-3 py-1 text-xs font-medium text-frizalia-text">
-              Datos reales y demostración
+              Datos de MySQL
             </span>
 
             <button
@@ -279,6 +210,7 @@ export default function DashboardPage() {
               </p>
 
               <p className="mt-1 text-sm text-frizalia-muted">{error}</p>
+              {resumen && <p className="mt-1 text-xs text-frizalia-muted">Se muestran los últimos datos obtenidos correctamente.</p>}
             </div>
           </div>
         )}
@@ -300,18 +232,18 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             titulo="Ventas del día"
-            valor={ventasHoyEjemplo}
+            valor={resumen?.ventasHoy ?? sinDatos}
             icono={ShoppingCart}
             color="rosa"
-            descripcion="Dato de demostración"
+            descripcion="Ventas registradas hoy"
           />
 
           <StatCard
             titulo="Ingresos del día"
-            valor={formatoMoneda.format(ingresosHoyEjemplo)}
+            valor={resumen ? formatoMoneda.format(resumen.ingresosHoy) : sinDatos}
             icono={Wallet}
             color="amarillo"
-            descripcion="Dato de demostración"
+            descripcion="Importe total de las ventas de hoy"
           />
 
           <StatCard
@@ -321,7 +253,7 @@ export default function DashboardPage() {
             }
             icono={Package}
             color="verde"
-            descripcion="Productos disponibles en inventario"
+            descripcion="Productos habilitados en inventario"
           />
 
           <StatCard
@@ -342,23 +274,26 @@ export default function DashboardPage() {
           GRÁFICO DE VENTAS SEMANALES
       ====================================== */}
 
-      <section className="space-y-2">
-        <p className="text-xs text-frizalia-muted">
-          Gráfico semanal con datos de demostración.
-        </p>
+      <StatCard
+        titulo="Efectivo esperado en caja"
+        valor={resumen ? (resumen.cajaActual ? formatoMoneda.format(resumen.cajaActual.efectivoEsperado) : "Caja cerrada") : sinDatos}
+        icono={Wallet}
+        color={resumen?.cajaActual ? "verde" : "amarillo"}
+        descripcion={resumen ? (resumen.cajaActual ? `Caja #${resumen.cajaActual.idCaja} abierta · Fondo inicial + entradas − salidas` : "No hay una caja abierta") : "Estado actual de caja"}
+      />
 
-        <SalesChart ventas={ventasSemanalesEjemplo} />
-      </section>
+      {resumen && <SalesChart ventas={resumen.ventasSemanales} />}
 
       {/* ======================================
           INVENTARIO Y SOLICITUDES
       ====================================== */}
 
-      <section className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
-        <LowStockList productos={productosStockBajo} />
-
-        <RecentRequests solicitudes={solicitudesRecientes} />
-      </section>
+      {resumen && (
+        <section className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
+          <LowStockList productos={resumen.productosStockBajo} />
+          <RecentRequests solicitudes={resumen.solicitudesRecientes} />
+        </section>
+      )}
     </div>
   );
 }

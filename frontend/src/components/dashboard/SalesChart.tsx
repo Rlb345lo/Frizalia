@@ -23,7 +23,8 @@ interface SalesChartProps {
 const formatoMoneda = new Intl.NumberFormat("es-MX", {
   style: "currency",
   currency: "MXN",
-  maximumFractionDigits: 0,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 // ==========================================
@@ -33,7 +34,7 @@ const formatoMoneda = new Intl.NumberFormat("es-MX", {
 export default function SalesChart({
   ventas,
   titulo = "Ventas semanales",
-  descripcion = "Ingresos registrados durante los últimos 7 días",
+  descripcion = "Importe de ventas de los últimos 7 días, incluido hoy",
 }: SalesChartProps) {
   // Valor máximo para calcular la altura de las barras.
   const maximo = Math.max(
@@ -111,7 +112,7 @@ export default function SalesChart({
                 >
 
                   {/* CANTIDAD AL PASAR EL MOUSE */}
-                  <span className="mb-2 text-center text-[10px] font-semibold text-frizalia-text opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 sm:text-xs">
+                  <span className="mb-2 shrink-0 text-center text-[10px] font-semibold text-frizalia-text opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 sm:text-xs">
                     {formatoMoneda.format(venta.total)}
                   </span>
 
@@ -124,7 +125,7 @@ export default function SalesChart({
                     style={{
                       height: `${Math.max(altura, venta.total > 0 ? 3 : 0)}%`,
                     }}
-                    className="w-full max-w-16 rounded-t-xl bg-frizalia-pink transition-all duration-300 hover:brightness-95 focus:outline-2 focus:outline-offset-2 focus:outline-frizalia-text"
+                    className="w-full min-h-0 max-w-16 rounded-t-xl bg-frizalia-pink transition-all duration-300 hover:brightness-95 focus:outline-2 focus:outline-offset-2 focus:outline-frizalia-text"
                   />
 
                 </div>

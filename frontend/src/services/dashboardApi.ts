@@ -7,6 +7,7 @@ const API_URL = "http://localhost:3000/api/dashboard";
 export interface ProductoStockBajo {
   id: number;
   nombre: string;
+  presentacion: string;
   stockActual: number;
   stockMinimo: number;
 }
@@ -27,7 +28,21 @@ export interface SolicitudReciente {
   estado: EstadoSolicitud;
 }
 
+export interface VentaDiaria {
+  dia: string;
+  total: number;
+}
+
+export interface CajaDashboard {
+  idCaja: number;
+  efectivoEsperado: number;
+}
+
 export interface ResumenDashboard {
+  ventasHoy: number;
+  ingresosHoy: number;
+  ventasSemanales: VentaDiaria[];
+  cajaActual: CajaDashboard | null;
   productosActivos: number;
   solicitudesPendientes: number;
   productosStockBajo: ProductoStockBajo[];
