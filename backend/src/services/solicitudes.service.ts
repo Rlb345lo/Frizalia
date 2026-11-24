@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import {
   consultarProductosPedido,
   crearSolicitudEnBD,
@@ -10,9 +12,29 @@ import {
   solicitarCancelacionEnBD,
   aprobarCancelacionEnBD,
   rechazarCancelacionEnBD,
+  consultarSolicitudParaCobro,
+  consultarDetallesSolicitudParaCobro,
+  consultarVentaPorSolicitud,
+  marcarSolicitudEntregada,
 } from "../repositories/solicitudes.repository.js";
 
+import {
+  consultarCajaAbierta,
+  consultarCajaPorId,
+} from "../repositories/caja.repository.js";
+
+import {
+  obtenerConexionVentas,
+  insertarVenta,
+  insertarDetalleVenta,
+  registrarIngresoCajaVenta,
+  consultarVentaCompleta,
+} from "../repositories/ventas.repository.js";
+
+import type { ResultadoRegistroVenta } from "../types/ventas.js";
+
 import type {
+  CobrarSolicitud,
   CrearSolicitud,
   ProductoSolicitado,
 } from "../types/solicitudes.js";
@@ -366,7 +388,14 @@ export async function actualizarEstadoPreparacion(
   }
 
   // Estados permitidos para esta operación
-  const estadosPermitidos = ["EN_PREPARACION", "LISTA", "ENTREGADA"] as const;
+  if (nuevoEstado === "ENTREGADA") {
+    throw new ErrorSolicitud(
+      409,
+      "Para entregar la solicitud debes registrar su cobro",
+    );
+  }
+
+  const estadosPermitidos = ["EN_PREPARACION", "LISTA"] as const;
 
   // Validar el estado recibido
   if (
@@ -376,10 +405,7 @@ export async function actualizarEstadoPreparacion(
     throw new ErrorSolicitud(400, "El estado solicitado no es válido");
   }
 
-  const estadoValidado = nuevoEstado as
-    | "EN_PREPARACION"
-    | "LISTA"
-    | "ENTREGADA";
+  const estadoValidado = nuevoEstado as "EN_PREPARACION" | "LISTA";
 
   try {
     // Actualizar el estado en MySQL
@@ -649,4 +675,249 @@ export async function rechazarCancelacion(
     id_solicitud: idSolicitud,
     estado_cancelacion: "RECHAZADA" as const,
   };
+}
+
+// ==========================================
+// UTILIDADES MONETARIAS PARA COBRO
+// ==========================================
+
+const MAXIMO_CENTAVOS_COBRO = 9_999_999_999;
+
+function decimalSolicitudACentavos(valor: string): number {
+  const texto = String(valor);
+  if (!/^\d+(?:\.\d{1,2})?$/.test(texto)) {
+    throw new ErrorSolicitud(409, "La solicitud contiene importes inválidos");
+  }
+
+  const [entero, decimal = ""] = texto.split(".");
+  const centavos = Number(entero) * 100 + Number(decimal.padEnd(2, "0"));
+
+  if (!Number.isSafeInteger(centavos) || centavos > MAXIMO_CENTAVOS_COBRO) {
+    throw new ErrorSolicitud(
+      409,
+      "El importe de la solicitud supera el límite permitido",
+    );
+  }
+  return centavos;
+}
+
+function centavosCobroADecimal(centavos: number): string {
+  return (centavos / 100).toFixed(2);
+}
+
+// ==========================================
+// COBRAR Y ENTREGAR SOLICITUD
+// ADMINISTRADOR / EMPLEADO AUTORIZADO
+// ==========================================
+
+export async function cobrarSolicitud(
+  idSolicitud: number,
+  idUsuarioPersonal: number,
+  datos: CobrarSolicitud,
+): Promise<ResultadoRegistroVenta> {
+  if (!Number.isSafeInteger(idSolicitud) || idSolicitud <= 0) {
+    throw new ErrorSolicitud(
+      400,
+      "El identificador de la solicitud no es válido",
+    );
+  }
+  if (!Number.isSafeInteger(idUsuarioPersonal) || idUsuarioPersonal <= 0) {
+    throw new ErrorSolicitud(401, "Usuario no autenticado");
+  }
+
+  const recibido = datos?.monto_recibido;
+  if (
+    typeof recibido !== "number" ||
+    !Number.isFinite(recibido) ||
+    recibido < 0
+  ) {
+    throw new ErrorSolicitud(
+      400,
+      "El monto recibido debe ser un número válido",
+    );
+  }
+  const recibidoCentavos = Math.round(recibido * 100);
+  if (
+    !Number.isSafeInteger(recibidoCentavos) ||
+    recibidoCentavos > MAXIMO_CENTAVOS_COBRO ||
+    Math.abs(recibido - recibidoCentavos / 100) > 1e-9
+  ) {
+    throw new ErrorSolicitud(
+      400,
+      "El monto recibido debe estar dentro del límite y tener máximo dos decimales",
+    );
+  }
+
+  const conexion = await obtenerConexionVentas();
+  let transaccionIniciada = false;
+
+  try {
+    await conexion.beginTransaction();
+    transaccionIniciada = true;
+
+    // Bloquear la caja antes de registrar cualquier ingreso.
+    const cajaActual = await consultarCajaAbierta(conexion);
+    if (!cajaActual) {
+      throw new ErrorSolicitud(
+        409,
+        "Debes abrir una caja antes de cobrar solicitudes",
+      );
+    }
+    const caja = await consultarCajaPorId(cajaActual.id_caja, conexion, true);
+    if (!caja || caja.estado !== "ABIERTA") {
+      throw new ErrorSolicitud(409, "La caja ya no se encuentra abierta");
+    }
+
+    // Bloquear la solicitud y comprobar que todavía pueda cobrarse.
+    const solicitud = await consultarSolicitudParaCobro(idSolicitud, conexion);
+    if (!solicitud) {
+      throw new ErrorSolicitud(404, "La solicitud no existe");
+    }
+    if ((await consultarVentaPorSolicitud(idSolicitud, conexion)) !== null) {
+      throw new ErrorSolicitud(
+        409,
+        "La solicitud ya tiene una venta registrada",
+      );
+    }
+    if (solicitud.estado !== "LISTA") {
+      throw new ErrorSolicitud(
+        409,
+        "Solo se pueden cobrar solicitudes listas para recoger",
+      );
+    }
+    if (
+      solicitud.estado_cancelacion !== "NINGUNA" &&
+      solicitud.estado_cancelacion !== "RECHAZADA"
+    ) {
+      throw new ErrorSolicitud(
+        409,
+        "La solicitud tiene un proceso de cancelación",
+      );
+    }
+
+    // Usar los precios originales, no los precios actuales del inventario.
+    const detalles = await consultarDetallesSolicitudParaCobro(
+      idSolicitud,
+      conexion,
+    );
+    if (detalles.length === 0) {
+      throw new ErrorSolicitud(409, "La solicitud no contiene productos");
+    }
+
+    const ids = new Set<number>();
+    let sumaCentavos = 0;
+    for (const detalle of detalles) {
+      if (
+        !Number.isSafeInteger(detalle.id_producto) ||
+        detalle.id_producto <= 0 ||
+        !Number.isSafeInteger(detalle.cantidad) ||
+        detalle.cantidad <= 0 ||
+        ids.has(detalle.id_producto)
+      ) {
+        throw new ErrorSolicitud(
+          409,
+          "La solicitud contiene productos o cantidades inválidas",
+        );
+      }
+      ids.add(detalle.id_producto);
+      const precio = decimalSolicitudACentavos(detalle.precio_unitario);
+      const subtotal = decimalSolicitudACentavos(detalle.subtotal);
+      if (precio * detalle.cantidad !== subtotal) {
+        throw new ErrorSolicitud(
+          409,
+          "Los subtotales de la solicitud no coinciden",
+        );
+      }
+      sumaCentavos += subtotal;
+      if (
+        !Number.isSafeInteger(sumaCentavos) ||
+        sumaCentavos > MAXIMO_CENTAVOS_COBRO
+      ) {
+        throw new ErrorSolicitud(409, "El total supera el límite permitido");
+      }
+    }
+
+    const totalCentavos = decimalSolicitudACentavos(solicitud.total);
+    if (totalCentavos <= 0 || sumaCentavos !== totalCentavos) {
+      throw new ErrorSolicitud(409, "El total de la solicitud no es válido");
+    }
+    if (recibidoCentavos < totalCentavos) {
+      throw new ErrorSolicitud(400, "El efectivo recibido es insuficiente");
+    }
+
+    const total = centavosCobroADecimal(totalCentavos);
+    const montoRecibido = centavosCobroADecimal(recibidoCentavos);
+    const cambio = centavosCobroADecimal(recibidoCentavos - totalCentavos);
+    const folio = `V-${randomUUID().replaceAll("-", "").slice(0, 20).toUpperCase()}`;
+
+    const idVenta = await insertarVenta(
+      caja.id_caja,
+      idUsuarioPersonal,
+      folio,
+      total,
+      "EFECTIVO",
+      montoRecibido,
+      cambio,
+      conexion,
+      idSolicitud,
+    );
+
+    // El inventario ya fue descontado al aceptar la solicitud.
+    for (const detalle of detalles) {
+      await insertarDetalleVenta(
+        idVenta,
+        detalle.id_producto,
+        detalle.cantidad,
+        centavosCobroADecimal(
+          decimalSolicitudACentavos(detalle.precio_unitario),
+        ),
+        centavosCobroADecimal(decimalSolicitudACentavos(detalle.subtotal)),
+        conexion,
+      );
+    }
+
+    await registrarIngresoCajaVenta(
+      caja.id_caja,
+      idUsuarioPersonal,
+      idVenta,
+      total,
+      folio,
+      conexion,
+    );
+
+    if (!(await marcarSolicitudEntregada(idSolicitud, conexion))) {
+      throw new ErrorSolicitud(
+        409,
+        "No se pudo finalizar la entrega de la solicitud",
+      );
+    }
+
+    const ventaCompleta = await consultarVentaCompleta(idVenta, conexion);
+    if (!ventaCompleta) {
+      throw new ErrorSolicitud(500, "No se pudo recuperar la venta registrada");
+    }
+
+    await conexion.commit();
+    transaccionIniciada = false;
+
+    return {
+      mensaje: "Solicitud cobrada y entregada correctamente",
+      venta: ventaCompleta.venta,
+      detalles: ventaCompleta.detalles,
+    };
+  } catch (error) {
+    if (transaccionIniciada) {
+      try {
+        await conexion.rollback();
+      } catch (errorRollback) {
+        console.error(
+          "No se pudo revertir el cobro de la solicitud:",
+          errorRollback,
+        );
+      }
+    }
+    throw error;
+  } finally {
+    conexion.release();
+  }
 }

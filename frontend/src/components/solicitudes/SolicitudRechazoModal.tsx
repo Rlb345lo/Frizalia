@@ -1,0 +1,5 @@
+import { useState } from "react";
+import type { SolicitudAdministrativa } from "../../types/solicitudes";
+import ModalSolicitud from "./ModalSolicitud";
+import { campo, primario } from "./utilidades";
+export default function SolicitudRechazoModal({ solicitud, ocupado, error, cerrar, confirmar }: { solicitud: SolicitudAdministrativa; ocupado: boolean; error: string; cerrar: () => void; confirmar: (motivo: string) => void }) { const [motivo,setMotivo]=useState(""); return <ModalSolicitud titulo={`Rechazar ${solicitud.folio ?? solicitud.id_solicitud}`} ocupado={ocupado} cerrar={cerrar}><form className="space-y-4" onSubmit={e=>{e.preventDefault(); if(!ocupado && motivo.trim()) confirmar(motivo.trim());}}><label className="block text-sm">Motivo del rechazo<textarea required maxLength={1000} className={`${campo} mt-2`} rows={4} value={motivo} disabled={ocupado} onChange={e=>setMotivo(e.target.value)}/></label>{error&&<p role="alert" className="text-sm text-red-700">{error}</p>}<button className={primario} disabled={ocupado||!motivo.trim()} type="submit">Confirmar rechazo</button></form></ModalSolicitud>; }

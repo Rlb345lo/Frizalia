@@ -1,0 +1,5 @@
+import type { SolicitudAdministrativa } from "../../types/solicitudes";
+export default function SolicitudesResumen({ solicitudes }: { solicitudes: SolicitudAdministrativa[] }) {
+ const tarjetas = [{ titulo: "Pendientes", total: solicitudes.filter(s => s.estado === "PENDIENTE").length, color: "text-amber-700" }, { titulo: "En proceso", total: solicitudes.filter(s => s.estado === "ACEPTADA" || s.estado === "EN_PREPARACION").length, color: "text-frizalia-text" }, { titulo: "Listas", total: solicitudes.filter(s => s.estado === "LISTA").length, color: "text-cyan-700" }, { titulo: "Entregadas", total: solicitudes.filter(s => s.estado === "ENTREGADA").length, color: "text-emerald-700" }];
+ return <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">{tarjetas.map(t => <section key={t.titulo} className="rounded-xl border border-frizalia-soft-pink bg-white p-4"><p className="text-sm text-frizalia-muted">{t.titulo}</p><p className={`mt-2 text-3xl font-bold ${t.color}`}>{t.total}</p></section>)}</div>;
+}

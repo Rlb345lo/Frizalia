@@ -1,9 +1,14 @@
+
 import { Navigate, Route, Routes } from "react-router";
 import type { ReactNode } from "react";
 
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import InventarioPage from "./pages/InventarioPage";
+import CajaPage from "./pages/CajaPage";
+import VentasPage from "./pages/VentasPage";
+import SolicitudesPage from "./pages/SolicitudesPage";
+import ReportesPage from "./pages/ReportesPage";
 
 import AdminLayout from "./components/layout/AdminLayout";
 import { useAuth } from "./hooks/useAuth";
@@ -24,16 +29,18 @@ function RutaProtegida({ children }: RutaProtegidaProps) {
   const { autenticado, verificando, errorSesion, reintentarVerificacion } =
     useAuth();
 
-  // VERIFICANDO SESIÓN
+  // VERIFICANDO SESION
   if (verificando) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-frizalia-cream">
-        <p className="text-frizalia-muted">Verificando sesión...</p>
+        <p className="text-frizalia-muted">
+          Verificando sesión...
+        </p>
       </main>
     );
   }
 
-  // ERROR DE VERIFICACIÓN
+  // ERROR DE VERIFICACION
   if (errorSesion) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-frizalia-cream px-4">
@@ -42,7 +49,9 @@ function RutaProtegida({ children }: RutaProtegidaProps) {
             No se pudo verificar la sesión
           </h2>
 
-          <p className="mt-3 text-sm text-frizalia-muted">{errorSesion}</p>
+          <p className="mt-3 text-sm text-frizalia-muted">
+            {errorSesion}
+          </p>
 
           <button
             type="button"
@@ -58,7 +67,7 @@ function RutaProtegida({ children }: RutaProtegidaProps) {
     );
   }
 
-  // USUARIO SIN SESIÓN
+  // USUARIO SIN SESION
   if (!autenticado) {
     return <Navigate to="/login" replace />;
   }
@@ -67,19 +76,22 @@ function RutaProtegida({ children }: RutaProtegidaProps) {
 }
 
 // ==========================================
-// APLICACIÓN
+// APLICACION
 // ==========================================
 
 function App() {
   return (
     <Routes>
       {/* RUTA INICIAL */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route
+        path="/"
+        element={<Navigate to="/dashboard" replace />}
+      />
 
       {/* LOGIN */}
       <Route path="/login" element={<LoginPage />} />
 
-      {/* DASHBOARD ADMINISTRATIVO */}
+      {/* DASHBOARD */}
       <Route
         path="/dashboard"
         element={
@@ -103,8 +115,59 @@ function App() {
         }
       />
 
+      {/* CAJA */}
+      <Route
+        path="/caja"
+        element={
+          <RutaProtegida>
+            <AdminLayout>
+              <CajaPage />
+            </AdminLayout>
+          </RutaProtegida>
+        }
+      />
+
+      {/* VENTAS */}
+      <Route
+        path="/ventas"
+        element={
+          <RutaProtegida>
+            <AdminLayout>
+              <VentasPage />
+            </AdminLayout>
+          </RutaProtegida>
+        }
+      />
+
+      {/* SOLICITUDES */}
+      <Route
+        path="/solicitudes"
+        element={
+          <RutaProtegida>
+            <AdminLayout>
+              <SolicitudesPage />
+            </AdminLayout>
+          </RutaProtegida>
+        }
+      />
+
+      {/* REPORTES */}
+      <Route
+        path="/reportes"
+        element={
+          <RutaProtegida>
+            <AdminLayout>
+              <ReportesPage />
+            </AdminLayout>
+          </RutaProtegida>
+        }
+      />
+
       {/* RUTAS DESCONOCIDAS */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route
+        path="*"
+        element={<Navigate to="/dashboard" replace />}
+      />
     </Routes>
   );
 }

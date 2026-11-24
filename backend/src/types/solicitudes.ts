@@ -111,3 +111,24 @@
    mensaje: string;
    solicitud: SolicitudConDetalles;
  }
+
+ // ==========================================
+// COBRO DE SOLICITUDES
+// ==========================================
+
+export interface CobrarSolicitud {
+  monto_recibido: number;
+}
+
+// ==========================================
+// INFORMACIÓN DEL CLIENTE
+// PANEL ADMINISTRATIVO
+// ==========================================
+
+export interface SolicitudAdministrativa
+  extends SolicitudConDetalles {
+  nombre_cliente: string;
+  correo_cliente: string;
+  telefono_cliente: string | null;
+  id_venta: number | null;
+}

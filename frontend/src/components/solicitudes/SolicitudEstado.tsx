@@ -1,0 +1,5 @@
+import type { EstadoSolicitud, EstadoCancelacion } from "../../types/solicitudes";
+import { etiquetas } from "./utilidades";
+const colores: Record<EstadoSolicitud, string> = { PENDIENTE: "bg-amber-50 text-amber-800", ACEPTADA: "bg-frizalia-soft-pink text-frizalia-text", EN_PREPARACION: "bg-violet-50 text-violet-800", LISTA: "bg-cyan-50 text-cyan-800", ENTREGADA: "bg-emerald-50 text-emerald-800", RECHAZADA: "bg-red-50 text-red-800", CANCELADA: "bg-slate-100 text-slate-600" };
+export default function SolicitudEstado({ estado }: { estado: EstadoSolicitud }) { return <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${colores[estado]}`}><span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current"/>{etiquetas[estado]}</span>; }
+export function SolicitudEstadoCancelacion({ estado }: { estado: EstadoCancelacion }) { if (estado === "NINGUNA") return null; return <span className="inline-block rounded-full bg-orange-50 px-2 py-1 text-xs text-orange-800">Cancelación {estado.toLowerCase()}</span>; }

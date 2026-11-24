@@ -1,0 +1,7 @@
+import type { VentaConDetalles } from "../../types/ventas";
+import { moneda, fecha } from "./utilidades";
+interface Props { datos: VentaConDetalles; cerrar: () => void }
+export default function DetalleVentaModal({datos,cerrar}: Props) {
+  const {venta,detalles}=datos;
+  return <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4"><section role="dialog" aria-modal="true" aria-label="Detalle de venta" className="max-h-[90vh] w-full max-w-xl space-y-4 overflow-auto rounded-2xl bg-white p-6"><div className="flex justify-between gap-3"><h2 className="text-xl font-bold">Detalle de venta #{venta.id_venta}</h2><button type="button" onClick={cerrar} className="text-frizalia-text">Cerrar</button></div><p className="break-all text-sm">{venta.folio} · {fecha(venta.fecha_venta)}</p><p className="text-sm">Caja #{venta.id_caja} · {venta.metodo_pago}</p><div className="divide-y divide-slate-100">{detalles.map(d=><div key={d.id_detalle_venta} className="flex justify-between gap-3 py-3"><div>{d.producto} <span className="text-xs text-slate-500">{d.presentacion}</span><p className="text-sm text-slate-500">{d.cantidad} × {moneda(d.precio_unitario)}</p></div><strong>{moneda(d.subtotal)}</strong></div>)}</div><div className="space-y-1 rounded-xl bg-frizalia-soft-pink p-4"><p>Total: <strong>{moneda(venta.total)}</strong></p><p>Recibido: {venta.monto_recibido===null?"—":moneda(venta.monto_recibido)}</p><p>Cambio: {venta.cambio===null?"—":moneda(venta.cambio)}</p></div></section></div>;
+}

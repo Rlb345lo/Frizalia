@@ -1,4 +1,5 @@
 import type { RowDataPacket, ResultSetHeader } from "mysql2";
+import type { PoolConnection } from "mysql2/promise";
 
 import { pool } from "../config/database.js";
 
@@ -6,6 +7,7 @@ import type {
   Solicitud,
   DetalleSolicitudPublico,
   SolicitudConDetalles,
+  SolicitudAdministrativa,
 } from "../types/solicitudes.js";
 
 // ==========================================
@@ -46,6 +48,8 @@ export interface ProductoCalculado {
 }
 
 type SolicitudRow = Solicitud & RowDataPacket;
+
+type SolicitudAdministrativaRow = Omit<SolicitudAdministrativa, "productos"> & RowDataPacket;
 
 type DetalleSolicitudRow = DetalleSolicitudPublico & RowDataPacket;
 
@@ -411,30 +415,36 @@ export async function buscarSolicitudPorIdYUsuario(
 // ==========================================
 
 export async function listarTodasLasSolicitudes(): Promise<
-  SolicitudConDetalles[]
+  SolicitudAdministrativa[]
 > {
   // Consultar todos los pedidos registrados
-  const [filas] = await pool.execute<SolicitudRow[]>(
+  const [filas] = await pool.execute<SolicitudAdministrativaRow[]>(
     `
        SELECT
-         id_solicitud,
-         id_usuario,
-         folio,
-         estado,
-         total,
-         minutos_llegada,
-         fecha_recogida_estimada,
-         motivo_rechazo,
-         motivo_cancelacion,
-         estado_cancelacion,
-         fecha_solicitud,
-         fecha_actualizacion
-       FROM solicitudes
-       ORDER BY fecha_solicitud DESC, id_solicitud DESC
+         s.id_solicitud,
+         s.id_usuario,
+         s.folio,
+         s.estado,
+         s.total,
+         s.minutos_llegada,
+         s.fecha_recogida_estimada,
+         s.motivo_rechazo,
+         s.motivo_cancelacion,
+         s.estado_cancelacion,
+         s.fecha_solicitud,
+         s.fecha_actualizacion,
+         u.nombre AS nombre_cliente,
+         u.correo AS correo_cliente,
+         u.telefono AS telefono_cliente,
+         v.id_venta
+       FROM solicitudes AS s
+       INNER JOIN usuarios AS u ON u.id_usuario = s.id_usuario
+       LEFT JOIN ventas AS v ON v.id_solicitud = s.id_solicitud
+       ORDER BY s.fecha_solicitud DESC, s.id_solicitud DESC
      `,
   );
 
-  const resultado: SolicitudConDetalles[] = [];
+  const resultado: SolicitudAdministrativa[] = [];
 
   // Obtener los productos de cada pedido
   for (const solicitud of filas) {
@@ -660,6 +670,12 @@ export async function actualizarEstadoPreparacionEnBD(
   idSolicitud: number,
   nuevoEstado: "EN_PREPARACION" | "LISTA" | "ENTREGADA",
 ): Promise<void> {
+  // La entrega solo puede completarse mediante el cobro transaccional.
+  // Conservamos la firma temporalmente para no romper el servicio actual.
+  if (nuevoEstado === "ENTREGADA") {
+    throw new Error("Para entregar la solicitud debes registrar su cobro");
+  }
+
   const conexion = await pool.getConnection();
 
   try {
@@ -690,7 +706,6 @@ export async function actualizarEstadoPreparacionEnBD(
     const transiciones: Record<string, string> = {
       ACEPTADA: "EN_PREPARACION",
       EN_PREPARACION: "LISTA",
-      LISTA: "ENTREGADA",
     };
 
     const siguienteEstado = transiciones[solicitud.estado];
@@ -1032,4 +1047,144 @@ export async function rechazarCancelacionEnBD(
   } finally {
     conexion.release();
   }
+}
+
+
+// ==========================================
+// TIPOS INTERNOS PARA COBRO DE SOLICITUDES
+// ==========================================
+
+export interface SolicitudParaCobro extends RowDataPacket {
+  id_solicitud: number;
+  id_usuario: number;
+  folio: string | null;
+  estado: Solicitud["estado"];
+  estado_cancelacion: Solicitud["estado_cancelacion"];
+  total: string;
+}
+
+export interface DetalleSolicitudParaCobro extends RowDataPacket {
+  id_detalle: number;
+  id_solicitud: number;
+  id_producto: number;
+  cantidad: number;
+  precio_unitario: string;
+  subtotal: string;
+}
+
+interface VentaSolicitudRow extends RowDataPacket {
+  id_venta: number;
+}
+
+// ==========================================
+// CONSULTAR Y BLOQUEAR SOLICITUD PARA COBRO
+// ==========================================
+
+export async function consultarSolicitudParaCobro(
+  idSolicitud: number,
+  conexion: PoolConnection,
+): Promise<SolicitudParaCobro | null> {
+  const [filas] = await conexion.execute<SolicitudParaCobro[]>(
+    `
+      SELECT
+        id_solicitud,
+        id_usuario,
+        folio,
+        estado,
+        estado_cancelacion,
+        total
+      FROM solicitudes
+      WHERE id_solicitud = ?
+      FOR UPDATE
+    `,
+    [idSolicitud],
+  );
+
+  return filas[0] ?? null;
+}
+
+// ==========================================
+// CONSULTAR DETALLES CON PRECIOS ORIGINALES
+// ==========================================
+
+export async function consultarDetallesSolicitudParaCobro(
+  idSolicitud: number,
+  conexion: PoolConnection,
+): Promise<DetalleSolicitudParaCobro[]> {
+  const [filas] = await conexion.execute<DetalleSolicitudParaCobro[]>(
+    `
+      SELECT
+        id_detalle,
+        id_solicitud,
+        id_producto,
+        cantidad,
+        precio_unitario,
+        subtotal
+      FROM detalle_solicitud
+      WHERE id_solicitud = ?
+      ORDER BY id_producto ASC, id_detalle ASC
+      FOR UPDATE
+    `,
+    [idSolicitud],
+  );
+
+  return filas;
+}
+
+// ==========================================
+// COMPROBAR SI LA SOLICITUD YA FUE COBRADA
+// ==========================================
+
+export async function consultarVentaPorSolicitud(
+  idSolicitud: number,
+  conexion: PoolConnection,
+): Promise<number | null> {
+  const [filas] = await conexion.execute<VentaSolicitudRow[]>(
+    `
+      SELECT id_venta
+      FROM ventas
+      WHERE id_solicitud = ?
+      FOR UPDATE
+    `,
+    [idSolicitud],
+  );
+
+  return filas[0]?.id_venta ?? null;
+}
+
+// ==========================================
+// MARCAR SOLICITUD ENTREGADA DESPUES DEL COBRO
+// ==========================================
+
+export async function marcarSolicitudEntregada(
+  idSolicitud: number,
+  conexion: PoolConnection,
+): Promise<boolean> {
+  // La venta y su movimiento de caja deben existir en la misma
+  // transaccion antes de finalizar la entrega.
+  const [resultado] = await conexion.execute<ResultSetHeader>(
+    `
+      UPDATE solicitudes AS s
+      SET estado = 'ENTREGADA'
+      WHERE s.id_solicitud = ?
+        AND s.estado = 'LISTA'
+        AND s.estado_cancelacion IN ('NINGUNA', 'RECHAZADA')
+        AND EXISTS (
+          SELECT 1
+          FROM ventas AS v
+          INNER JOIN movimientos_caja AS mc
+            ON mc.id_venta = v.id_venta
+            AND mc.id_caja = v.id_caja
+          WHERE v.id_solicitud = s.id_solicitud
+            AND v.metodo_pago = 'EFECTIVO'
+            AND v.total = s.total
+            AND mc.tipo = 'ENTRADA'
+            AND mc.concepto = 'VENTA'
+            AND mc.monto = v.total
+        )
+    `,
+    [idSolicitud],
+  );
+
+  return resultado.affectedRows === 1;
 }

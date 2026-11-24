@@ -18,7 +18,7 @@ import {
   solicitarCancelacionController,
   aprobarCancelacionController,
   rechazarCancelacionController,
-  
+  cobrarSolicitudController,
 } from "../controllers/solicitudes.controller.js";
 
 // ==========================================
@@ -139,6 +139,18 @@ router.patch(
   verificarToken,
   verificarPersonalActivo,
   rechazarCancelacionController,
+);
+
+// ==========================================
+// COBRAR Y ENTREGAR SOLICITUD
+// ADMINISTRADOR / EMPLEADO
+// ==========================================
+
+router.post(
+  "/admin/:id/cobrar",
+  verificarToken,
+  verificarPersonalActivo,
+  cobrarSolicitudController,
 );
 
 export default router;

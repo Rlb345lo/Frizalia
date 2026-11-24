@@ -12,6 +12,7 @@ import {
   ErrorSolicitud,
   aprobarCancelacion,
   rechazarCancelacion,
+  cobrarSolicitud,
 } from "../services/solicitudes.service.js";
 
 import type { RequestAutenticada } from "../middlewares/auth.middleware.js";
@@ -592,6 +593,76 @@ export async function rechazarCancelacionController(
 
     res.status(500).json({
       mensaje: "Ocurrió un error al rechazar la cancelación",
+    });
+  }
+}
+
+// ==========================================
+// CONTROLADOR: COBRAR Y ENTREGAR SOLICITUD
+// ADMINISTRADOR Y EMPLEADO
+// ==========================================
+
+export async function cobrarSolicitudController(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  try {
+    const solicitud = req as RequestAutenticada;
+    const idUsuarioPersonal = solicitud.idUsuario;
+
+    if (!idUsuarioPersonal) {
+      res.status(401).json({
+        mensaje: "Debes iniciar sesión para cobrar pedidos",
+      });
+      return;
+    }
+
+    const parametroId = req.params.id;
+
+    if (typeof parametroId !== "string" || !/^[1-9]\d*$/.test(parametroId)) {
+      res.status(400).json({
+        mensaje: "El identificador de la solicitud no es válido",
+      });
+      return;
+    }
+
+    const idSolicitud = Number(parametroId);
+
+    if (!Number.isSafeInteger(idSolicitud)) {
+      res.status(400).json({
+        mensaje: "El identificador de la solicitud no es válido",
+      });
+      return;
+    }
+
+    const montoRecibido: unknown = req.body?.monto_recibido;
+
+    if (typeof montoRecibido !== "number" || !Number.isFinite(montoRecibido)) {
+      res.status(400).json({
+        mensaje: "El monto recibido debe ser un número válido",
+      });
+      return;
+    }
+
+    const resultado = await cobrarSolicitud(
+      idSolicitud,
+      idUsuarioPersonal,
+      { monto_recibido: montoRecibido },
+    );
+
+    res.status(201).json(resultado);
+  } catch (error) {
+    if (error instanceof ErrorSolicitud) {
+      res.status(error.estado).json({
+        mensaje: error.message,
+      });
+      return;
+    }
+
+    console.error("Error al cobrar la solicitud:", error);
+
+    res.status(500).json({
+      mensaje: "Ocurrió un error al cobrar la solicitud",
     });
   }
 }
