@@ -58,3 +58,19 @@ export async function crearCliente(
 
   return resultado.insertId;
 }
+
+export async function crearAdministrador(
+  nombre: string,
+  correo: string,
+  passwordHash: string,
+  telefono: string | null
+): Promise<number> {
+  const [resultado] = await pool.execute<ResultSetHeader>(
+    `INSERT INTO usuarios
+      (nombre, correo, password_hash, telefono, rol)
+     VALUES (?, ?, ?, ?, 'ADMINISTRADOR')`,
+    [nombre, correo, passwordHash, telefono]
+  );
+
+  return resultado.insertId;
+}

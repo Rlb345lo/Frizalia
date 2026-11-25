@@ -1,4 +1,5 @@
 
+import { timingSafeEqual, createHash } from "node:crypto";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import type { SignOptions } from "jsonwebtoken";
@@ -7,6 +8,7 @@ import {
   buscarUsuarioPorCorreo,
   buscarUsuarioPorId,
   crearCliente,
+  crearAdministrador,
 } from "../repositories/auth.repository.js";
 
 import { usuarioPublico } from "../types/auth.js";
@@ -71,9 +73,13 @@ function generarToken(usuario: Usuario): string {
 // REGISTRAR NUEVO CLIENTE
 // ==========================================
 
-export async function registrarCliente(
-  datos: RegistroUsuario
+async function registrarUsuario(
+  datos: RegistroUsuario,
+  rol: "CLIENTE" | "ADMINISTRADOR"
 ) {
+  if (!datos || typeof datos !== "object") {
+    throw new ErrorAuth(400, "Datos de registro inválidos");
+  }
   const { nombre, correo, password, telefono } = datos;
 
   // Validar campos obligatorios
@@ -151,7 +157,8 @@ export async function registrarCliente(
 
   try {
     // Guardar cliente en MySQL
-    idUsuario = await crearCliente(
+    const crear = rol === "ADMINISTRADOR" ? crearAdministrador : crearCliente;
+    idUsuario = await crear(
       nombreLimpio,
       correoLimpio,
       passwordHash,
@@ -180,7 +187,7 @@ export async function registrarCliente(
       nombre: nombreLimpio,
       correo: correoLimpio,
       telefono: telefono?.trim() || null,
-      rol: "CLIENTE" as const,
+      rol,
     },
   };
 }
@@ -252,4 +259,21 @@ export async function obtenerPerfil(
   }
 
   return usuarioPublico(usuario);
+}
+
+export async function registrarCliente(datos: RegistroUsuario) {
+  return registrarUsuario(datos, "CLIENTE");
+}
+
+export async function registrarAdministrador(datos: RegistroUsuario & { claveRegistro?: unknown }) {
+  const clave = process.env.ADMIN_REGISTRATION_KEY;
+  if (!clave || clave.length < 32) {
+    throw new ErrorAuth(503, "Registro administrativo no habilitado");
+  }
+  const recibida = datos?.claveRegistro;
+  if (typeof recibida !== "string" || recibida.length > 256 ||
+      !timingSafeEqual(createHash("sha256").update(recibida).digest(), createHash("sha256").update(clave).digest())) {
+    throw new ErrorAuth(403, "Clave de autorización incorrecta");
+  }
+  return registrarUsuario(datos, "ADMINISTRADOR");
 }

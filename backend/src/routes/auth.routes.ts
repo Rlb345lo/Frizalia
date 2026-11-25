@@ -3,6 +3,7 @@ import { Router } from "express";
 
 import {
   registro,
+  registroAdmin,
   login,
   perfil,
 } from "../controllers/auth.controller.js";
@@ -19,6 +20,7 @@ const router = Router();
 
 // Registrar un nuevo cliente
 router.post("/registro", registro);
+router.post("/registro-admin", registroAdmin);
 
 // Iniciar sesión
 router.post("/login", login);

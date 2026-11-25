@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 
 import {
   registrarCliente,
+  registrarAdministrador,
   iniciarSesion,
   obtenerPerfil,
   ErrorAuth,
@@ -87,6 +88,15 @@ export async function perfil(
     const usuario = await obtenerPerfil(req.idUsuario);
 
     res.status(200).json(usuario);
+  } catch (error) {
+    responderError(error, res);
+  }
+}
+
+export async function registroAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const resultado = await registrarAdministrador(req.body);
+    res.status(201).json(resultado);
   } catch (error) {
     responderError(error, res);
   }

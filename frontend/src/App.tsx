@@ -2,6 +2,7 @@
 import { Navigate, Route, Routes } from "react-router";
 import type { ReactNode } from "react";
 
+import RegisterPage from "./pages/RegisterPage";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import InventarioPage from "./pages/InventarioPage";
@@ -90,6 +91,7 @@ function App() {
 
       {/* LOGIN */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/registro" element={<RegisterPage />} />
 
       {/* DASHBOARD */}
       <Route

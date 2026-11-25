@@ -134,3 +134,25 @@ export function tieneAccesoAdministrativo(
 ): boolean {
   return usuario.rol === "ADMINISTRADOR" || usuario.rol === "EMPLEADO";
 }
+
+export interface RegistroAdminDatos {
+  nombre: string;
+  correo: string;
+  password: string;
+  telefono?: string;
+  claveRegistro: string;
+}
+
+export async function registrarAdministrador(datos: RegistroAdminDatos): Promise<{ mensaje: string; usuario: UsuarioAutenticado }> {
+  let respuesta: Response;
+  try {
+    respuesta = await fetch(`${API_URL}/registro-admin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(datos),
+    });
+  } catch {
+    throw new Error("No se pudo conectar con el servidor de Frizalia.");
+  }
+  return procesarRespuesta<{ mensaje: string; usuario: UsuarioAutenticado }>(respuesta);
+}
